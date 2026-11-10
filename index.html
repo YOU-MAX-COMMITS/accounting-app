@@ -218,7 +218,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.1</span></h1>
+    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.2</span></h1>
     <div style="display:flex; gap:8px; align-items:center;">
       <button id="pwa-install" class="btn-primary btn-sm" style="display:none;" onclick="installPwa()">📲 安装到桌面</button>
       <button class="btn-ghost btn-sm" onclick="importData()">📤 导入</button>
@@ -1625,15 +1625,33 @@ function installPwa() {
   showInstallGuide(ua);
 }
 
+// 安装指引弹窗（页面内自建，不依赖系统 alert，防止被国产浏览器拦截）
+let installGuideModal = null;
 function showInstallGuide(ua) {
+  let text;
   if (/micromessenger|qq\//.test(ua)) {
-    // 微信 / QQ 内置浏览器无法安装，必须跳到系统浏览器
-    alert('当前是微信/QQ 内置浏览器，无法安装 App。\n\n请点右上角「···」→ 选择「在浏览器打开」，打开后再点本按钮。');
+    text = '当前是微信/QQ 内置浏览器，无法安装 App。\n\n请点右上角「···」→ 选择「在浏览器打开」，打开后再点安装按钮。';
   } else if (/iphone|ipad|ipod/.test(ua)) {
-    alert('在 Safari 中点击底部「分享」按钮 → 选择「添加到主屏幕」，即可像 App 一样使用。');
+    text = '在 Safari 中点击底部「分享」按钮 → 选择「添加到主屏幕」，即可像 App 一样使用。';
   } else {
-    alert('当前浏览器不支持一键安装，请手动添加：\n\n点浏览器菜单（右上角 ⋮ 或底部 ≡）\n→ 选择「安装应用 / 添加到主屏幕 / 添加至桌面」\n\n桌面会出现「记账本」图标，之后点图标即可全屏使用。');
+    text = '当前浏览器不支持一键安装，请手动添加：\n\n① 点浏览器菜单（右上角 ⋮ 或底部 ≡）\n② 选择「安装应用 / 添加到主屏幕 / 添加至桌面」\n\n桌面会出现「记账本」图标，之后点图标即可全屏使用。';
   }
+  if (!installGuideModal) {
+    installGuideModal = document.createElement('div');
+    installGuideModal.className = 'modal-overlay';
+    installGuideModal.innerHTML = `
+      <div class="modal" style="text-align:center;">
+        <h3>📲 安装到桌面</h3>
+        <p id="install-guide-text" style="white-space:pre-line; text-align:left; line-height:1.8; color:var(--text,#333);"></p>
+        <button class="btn-primary" style="margin-top:16px; width:100%;" onclick="installGuideModal.classList.remove('active')">知道了</button>
+      </div>`;
+    document.body.appendChild(installGuideModal);
+    installGuideModal.addEventListener('click', e => {
+      if (e.target === installGuideModal) installGuideModal.classList.remove('active');
+    });
+  }
+  installGuideModal.querySelector('#install-guide-text').textContent = text;
+  installGuideModal.classList.add('active');
 }
 
 // 按钮始终显示（已安装为独立窗口时隐藏），
