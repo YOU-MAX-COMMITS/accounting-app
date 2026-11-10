@@ -218,7 +218,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.0</span></h1>
+    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.1</span></h1>
     <div style="display:flex; gap:8px; align-items:center;">
       <button id="pwa-install" class="btn-primary btn-sm" style="display:none;" onclick="installPwa()">📲 安装到桌面</button>
       <button class="btn-ghost btn-sm" onclick="importData()">📤 导入</button>
@@ -1604,6 +1604,10 @@ window.addEventListener('appinstalled', () => {
 
 function installPwa() {
   const ua = navigator.userAgent.toLowerCase();
+  // 点击瞬间给视觉反馈：即便弹窗被浏览器拦截，也能确认点击已生效
+  const btn = document.getElementById('pwa-install');
+  btn.textContent = '⏳ 正在打开安装…';
+  setTimeout(() => { btn.textContent = '📲 安装到桌面'; }, 2500);
   if (deferredInstallPrompt) {
     const ev = deferredInstallPrompt;
     deferredInstallPrompt = null;

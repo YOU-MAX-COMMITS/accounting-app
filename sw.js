@@ -1,4 +1,4 @@
-const CACHE_NAME = 'accounting-app-v1';
+const CACHE_NAME = 'accounting-app-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -30,10 +30,10 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET' || new URL(req.url).origin !== location.origin) return;
 
-  // 页面导航：优先网络（拿到新版本），失败时回退缓存，保证离线可用
+  // 页面导航：优先网络（绕过 HTTP 缓存，保证拿到最新版本），失败时回退缓存
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      fetch(req, { cache: 'no-cache' })
         .then(res => {
           const copy = res.clone();
           caches.open(CACHE_NAME).then(c => c.put('./index.html', copy));
