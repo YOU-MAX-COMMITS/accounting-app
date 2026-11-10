@@ -218,7 +218,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v2.8</span></h1>
+    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v2.9</span></h1>
     <div style="display:flex; gap:8px; align-items:center;">
       <button id="pwa-install" class="btn-primary btn-sm" style="display:none;" onclick="installPwa()">📲 安装到桌面</button>
       <button class="btn-ghost btn-sm" onclick="importData()">📤 导入</button>
@@ -1604,24 +1604,28 @@ window.addEventListener('appinstalled', () => {
 
 function installPwa() {
   if (deferredInstallPrompt) {
+    // Chrome / Edge 等支持原生安装：直接弹安装框
     deferredInstallPrompt.prompt();
     deferredInstallPrompt.userChoice.then(() => {
       deferredInstallPrompt = null;
-      document.getElementById('pwa-install').style.display = 'none';
     });
     return;
   }
-  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+  const ua = navigator.userAgent.toLowerCase();
+  if (/micromessenger|qq\//.test(ua)) {
+    // 微信 / QQ 内置浏览器无法安装，必须跳到系统浏览器
+    alert('当前是微信/QQ 内置浏览器，无法安装 App。\n\n请点右上角「···」→ 选择「在浏览器打开」，打开后再点本按钮。');
+  } else if (/iphone|ipad|ipod/.test(ua)) {
     alert('在 Safari 中点击底部「分享」按钮 → 选择「添加到主屏幕」，即可像 App 一样使用。');
   } else {
-    alert('请点浏览器右上角菜单 → 选择「添加到主屏幕 / 安装应用」。');
+    alert('当前浏览器不支持一键安装。\n\n建议用手机自带 Chrome / Edge 打开本页面；\n或点浏览器菜单（右上角 ⋮ 或底部 ≡）→ 选择「安装应用 / 添加到主屏幕」。');
   }
 }
 
-// iOS Safari 不会触发 beforeinstallprompt，手动显示按钮
+// 按钮始终显示（已安装为独立窗口时隐藏），
+// 支持原生安装的浏览器点了直接装，不支持的点了给出对应指引
 window.addEventListener('load', () => {
-  const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
-  if (isiOS && !isStandalone()) {
+  if (!isStandalone()) {
     document.getElementById('pwa-install').style.display = '';
   }
 });
