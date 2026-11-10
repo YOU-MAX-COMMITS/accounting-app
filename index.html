@@ -1,0 +1,1630 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#4f46e5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="智能记账本">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="description" content="本地存储的智能记账本：记账、倒计时分摊、统计、预算、分类。">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="./icons/favicon-32.png">
+<link rel="apple-touch-icon" href="./icons/apple-touch-icon.png">
+<title>智能记账本</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #4f46e5; --primary-light: #6366f1; --primary-bg: #eef2ff;
+    --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+    --bg: #f8fafc; --card: #ffffff; --text: #1e293b; --text-secondary: #64748b;
+    --border: #e2e8f0; --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .app { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; padding: 16px 0; border-bottom: 2px solid var(--border); }
+  header h1 { font-size: 24px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 10px; }
+  header h1::before { content: '💰'; font-size: 28px; }
+  .tabs { display: flex; gap: 4px; background: var(--card); padding: 6px; border-radius: 12px; box-shadow: var(--shadow); margin-bottom: 24px; }
+  .tab { flex: 1; padding: 12px 16px; text-align: center; border: none; background: transparent; cursor: pointer; border-radius: 8px; font-size: 15px; font-weight: 500; color: var(--text-secondary); transition: all 0.2s; }
+  .tab:hover { background: var(--primary-bg); }
+  .tab.active { background: var(--primary); color: white; }
+  .tab-content { display: none; animation: fadeIn 0.3s; }
+  .tab-content.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  .card { background: var(--card); border-radius: 12px; padding: 20px; box-shadow: var(--shadow); margin-bottom: 20px; }
+  .card h2 { font-size: 18px; font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--text-secondary); }
+  input, select, textarea { padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 14px; font-family: inherit; transition: border-color 0.2s; background: white; }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+  button { padding: 10px 18px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: inherit; }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-light); transform: translateY(-1px); }
+  .btn-danger { background: var(--danger); color: white; }
+  .btn-danger:hover { opacity: 0.9; }
+  .btn-ghost { background: transparent; color: var(--text-secondary); border: 1px solid var(--border); }
+  .btn-ghost:hover { background: var(--bg); }
+  .btn-sm { padding: 6px 12px; font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 14px; }
+  th { background: var(--bg); font-weight: 600; color: var(--text-secondary); font-size: 13px; }
+  tr:hover td { background: var(--primary-bg); }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 12px; font-weight: 500; }
+  .badge-food { background: #fef3c7; color: #92400e; }
+  .badge-transport { background: #dbeafe; color: #1e40af; }
+  .badge-shopping { background: #fce7f3; color: #9d174d; }
+  .badge-entertainment { background: #e0e7ff; color: #3730a3; }
+  .badge-housing { background: #d1fae5; color: #065f46; }
+  .badge-health { background: #fee2e2; color: #991b1b; }
+  .badge-education { background: #f3e8ff; color: #6b21a8; }
+  .badge-other { background: #f1f5f9; color: #475569; }
+  .stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+  .stat-card { background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; border-radius: 12px; padding: 20px; }
+  .stat-card.green { background: linear-gradient(135deg, #10b981, #34d399); }
+  .stat-card.orange { background: linear-gradient(135deg, #f59e0b, #fbbf24); }
+  .stat-card.red { background: linear-gradient(135deg, #ef4444, #f87171); }
+  .stat-card.purple { background: linear-gradient(135deg, #8b5cf6, #a78bfa); }
+  .stat-label { font-size: 13px; opacity: 0.9; margin-bottom: 8px; }
+  .stat-value { font-size: 28px; font-weight: 700; }
+  .stat-sub { font-size: 12px; opacity: 0.8; margin-top: 4px; }
+  .chart-container { position: relative; height: 300px; margin-bottom: 16px; }
+  .pie-wrap { position: relative; width: 48%; height: 100%; min-width: 150px; }
+  .pie-wrap canvas { width: 100%; height: 100%; display: block; }
+  .pie-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+  .pie-center .amount { font-size: 18px; font-weight: 700; }
+  .pie-center .label { font-size: 11px; color: var(--text-secondary); margin-top: 2px; }
+  .pie-legend { position: absolute; right: 0; top: 50%; transform: translateY(-50%); width: 50%; max-height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+  .pie-legend-dot { width: 10px; height: 10px; border-radius: 3px; flex: 0 0 auto; }
+  .pie-legend-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pie-legend-value { font-weight: 600; flex: 0 0 auto; }
+  .pie-legend-pct { color: var(--text-secondary); font-size: 12px; width: 46px; text-align: right; flex: 0 0 auto; }
+  .empty-state { text-align: center; padding: 40px; color: var(--text-secondary); }
+  .empty-state::before { content: '📊'; font-size: 48px; display: block; margin-bottom: 12px; }
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal { background: white; border-radius: 16px; padding: 24px; width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; }
+  .modal h3 { margin-bottom: 16px; font-size: 18px; }
+  .progress-bar { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin: 8px 0; }
+  .progress-fill { height: 100%; background: var(--primary); transition: width 0.3s; }
+  .progress-fill.warn { background: var(--warning); }
+  .progress-fill.danger { background: var(--danger); }
+  .flex { display: flex; gap: 12px; align-items: center; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .text-secondary { color: var(--text-secondary); }
+  .text-danger { color: var(--danger); }
+  .text-success { color: var(--success); }
+  .text-warning { color: var(--warning); }
+  .font-bold { font-weight: 700; }
+  .category-pill { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; background: var(--bg); border-radius: 20px; font-size: 13px; margin: 4px; cursor: pointer; transition: all 0.2s; }
+  .category-pill:hover { background: var(--primary-bg); }
+  .category-pill .remove { color: var(--danger); font-weight: bold; cursor: pointer; }
+  .toggle-section { margin-bottom: 16px; }
+  .toggle-header { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--bg); border-radius: 8px; cursor: pointer; }
+  .toggle-body { padding: 16px; border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; display: none; }
+  .toggle-body.open { display: block; }
+  .budget-info { background: var(--primary-bg); padding: 16px; border-radius: 8px; margin: 12px 0; }
+  .amount { font-weight: 700; color: var(--primary); }
+  .tab-icon { display: none; }
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* ============ 倒计时样式 ============ */
+  .cd-mode-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 4px; }
+  .cd-mode-option { cursor: pointer; }
+  .cd-mode-option input[type="radio"] { display: none; }
+  .cd-mode-card {
+    border: 2px solid var(--border); border-radius: 12px; padding: 14px;
+    transition: all 0.18s; background: #fff;
+  }
+  .cd-mode-option input[type="radio"]:checked + .cd-mode-card {
+    border-color: var(--primary); background: var(--primary-bg);
+  }
+  .cd-mode-emoji { font-size: 24px; margin-bottom: 4px; }
+  .cd-mode-title { font-weight: 600; font-size: 14px; }
+  .cd-mode-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; line-height: 1.5; }
+
+  .cd-item {
+    border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    background: #fff;
+  }
+  .cd-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
+  .cd-name { font-size: 16px; font-weight: 600; }
+  .cd-meta { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .cd-mode-tag {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-left: 6px;
+    background: var(--primary-bg); color: var(--primary);
+  }
+  .cd-mode-tag.manual { background: #fef3c7; color: #b45309; }
+
+  .cd-numbers { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px 0; }
+  .cd-num-box {
+    background: #f9fafb; border-radius: 10px; padding: 10px; text-align: center;
+  }
+  .cd-num-label { font-size: 11px; color: var(--text-secondary); margin-bottom: 2px; }
+  .cd-num-value { font-size: 16px; font-weight: 700; }
+  .cd-num-value.paid { color: #10b981; }
+  .cd-num-value.remaining { color: #4f46e5; }
+  .cd-num-value.total { color: #6b7280; }
+
+  .cd-footer { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .cd-records { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+  .cd-record-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--text-secondary); padding: 3px 0;
+  }
+  .cd-record-amount { color: #10b981; font-weight: 600; }
+  .cd-empty { text-align: center; padding: 28px; color: var(--text-secondary); }
+
+  @media (max-width: 700px) {
+    body { -webkit-text-size-adjust: 100%; }
+    .app { padding: 12px 12px calc(88px + env(safe-area-inset-bottom)); max-width: 100%; }
+    header { margin-bottom: 12px; padding: 8px 0 10px; }
+    header h1 { font-size: 18px; gap: 6px; }
+    header h1::before { font-size: 20px; }
+    .tabs {
+      position: fixed; left: 0; right: 0; bottom: 0; z-index: 900;
+      margin: 0; padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+      border-radius: 16px 16px 0 0; box-shadow: 0 -4px 16px rgba(0,0,0,0.10); gap: 2px;
+    }
+    .tab {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      gap: 2px; min-height: 50px; padding: 4px 2px; font-size: 11px; font-weight: 500;
+    }
+    .tab-icon { display: block; font-size: 19px; line-height: 1.1; }
+    .card { padding: 14px; border-radius: 12px; margin-bottom: 12px; }
+    .card h2 { font-size: 16px; margin-bottom: 12px; }
+    input, select, textarea { font-size: 16px; padding: 11px 12px; width: 100%; }
+    button { min-height: 44px; }
+    .btn-sm { min-height: 34px; padding: 6px 10px; font-size: 13px; }
+    .flex { flex-wrap: wrap; }
+    .flex > input, .flex > select { flex: 1 1 150px; min-width: 0; }
+    .flex > button { flex: 1 1 auto; }
+    .flex-between { flex-wrap: wrap; gap: 8px; }
+    .form-row { grid-template-columns: 1fr; gap: 10px; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat-card { padding: 14px; border-radius: 10px; }
+    .stat-label { font-size: 12px; margin-bottom: 4px; }
+    .stat-value { font-size: 20px; }
+    .stat-sub { font-size: 11px; }
+    .chart-container { height: auto; }
+    .pie-wrap { width: 100%; height: 220px; min-width: 0; margin: 0 auto; }
+    .pie-legend { position: static; transform: none; width: 100%; max-height: none; margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .pie-legend-value { font-size: 12px; }
+    th, td { padding: 9px 8px; font-size: 13px; }
+    .modal-overlay { align-items: flex-end; }
+    .modal { width: 100%; max-width: 100%; max-height: 88vh; border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom)); }
+    .category-pill { font-size: 12px; padding: 5px 10px; }
+    .empty-state { padding: 28px 12px; }
+    .empty-state::before { font-size: 38px; margin-bottom: 8px; }
+
+    /* 账单列表在手机上改为卡片式 */
+    .table-mobile table, .table-mobile tbody, .table-mobile tr, .table-mobile td { display: block; width: 100%; }
+    .table-mobile thead { display: none; }
+    .table-mobile tr { border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+    .table-mobile tr:hover td { background: transparent; }
+    .table-mobile td { border: none; padding: 2px 0; font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .table-mobile td::before { content: attr(data-label); color: var(--text-secondary); font-size: 12px; flex: 0 0 58px; }
+    .table-mobile td[data-label="金额"] { font-size: 16px; }
+    .table-mobile td[data-label="操作"] { justify-content: flex-end; gap: 8px; margin-top: 8px; }
+    .table-mobile td[data-label="操作"]::before { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v2.8</span></h1>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button id="pwa-install" class="btn-primary btn-sm" style="display:none;" onclick="installPwa()">📲 安装到桌面</button>
+      <button class="btn-ghost btn-sm" onclick="importData()">📤 导入</button>
+      <button class="btn-ghost btn-sm" onclick="exportData()">📥 导出</button>
+    </div>
+  </header>
+
+  <div id="storage-tip" class="text-secondary" style="display:none; margin-bottom:16px; padding:10px 12px; background:#fef3c7; border-radius:8px; font-size:13px;">
+    当前预览环境禁用了本地存储，数据只保留在当前页面，刷新后会清空。建议下载文件后用本地浏览器打开，以便长期保存。
+  </div>
+
+  <nav class="tabs">
+    <button class="tab active" data-tab="ledger"><span class="tab-icon">📝</span>记账</button>
+    <button class="tab" data-tab="countdown"><span class="tab-icon">⏳</span>倒计时</button>
+    <button class="tab" data-tab="stats"><span class="tab-icon">📊</span>统计</button>
+    <button class="tab" data-tab="budget"><span class="tab-icon">🎯</span>预算</button>
+    <button class="tab" data-tab="categories"><span class="tab-icon">🏷️</span>分类</button>
+  </nav>
+
+  <!-- 记账 -->
+  <div class="tab-content active" id="tab-ledger">
+    <div class="card">
+      <h2>✏️ <span id="form-title">记一笔</span></h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>金额 (元)</label>
+          <input type="number" id="bill-amount" placeholder="0.00" step="0.01" min="0">
+        </div>
+        <div class="form-group">
+          <label>大分类</label>
+          <select id="bill-major"><option value="">请选择</option></select>
+        </div>
+        <div class="form-group">
+          <label>子分类</label>
+          <select id="bill-sub"><option value="">请先选择大分类</option></select>
+        </div>
+        <div class="form-group">
+          <label>记账时间</label>
+          <input type="datetime-local" id="bill-date">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1;">
+          <label>备注 (可选)</label>
+          <input type="text" id="bill-note" placeholder="添加备注...">
+        </div>
+      </div>
+      <div class="flex">
+        <button class="btn-primary" id="bill-submit-btn" onclick="saveBill()">保存账单</button>
+        <button class="btn-ghost" onclick="cancelEdit()">取消</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="flex-between">
+        <h2>📋 账单列表</h2>
+        <div class="flex">
+          <select id="filter-major" onchange="renderBills()"><option value="">全部分类</option></select>
+          <input type="month" id="filter-month" onchange="renderBills()">
+        </div>
+      </div>
+      <div id="bills-list"></div>
+    </div>
+  </div>
+
+  <!-- 倒计时 -->
+  <div class="tab-content" id="tab-countdown">
+    <div class="card">
+      <h2>⏳ <span id="cd-form-title">新建倒计时</span></h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>名称（产品/事项）</label>
+          <input type="text" id="cd-name" placeholder="例如：iPhone 17、健身房年卡">
+        </div>
+        <div class="form-group">
+          <label>总金额 (元)</label>
+          <input type="number" id="cd-total" step="0.01" min="0.01" placeholder="0.00">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>扣减方式</label>
+        <div class="cd-mode-switch">
+          <label class="cd-mode-option">
+            <input type="radio" name="cd-mode" value="time" checked onchange="onCdModeChange()">
+            <div class="cd-mode-card">
+              <div class="cd-mode-emoji">⏱️</div>
+              <div class="cd-mode-title">按时间平摊</div>
+              <div class="cd-mode-desc">在起止日期之间自动按天均摊扣减</div>
+            </div>
+          </label>
+          <label class="cd-mode-option">
+            <input type="radio" name="cd-mode" value="manual" onchange="onCdModeChange()">
+            <div class="cd-mode-card">
+              <div class="cd-mode-emoji">🔢</div>
+              <div class="cd-mode-title">按次数扣减</div>
+              <div class="cd-mode-desc">每次输入使用次数，总额按累计总次数均摊</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="form-row" id="cd-time-range">
+        <div class="form-group">
+          <label>起始日期</label>
+          <input type="date" id="cd-start">
+        </div>
+        <div class="form-group">
+          <label style="color:var(--text-secondary);">💡 日均金额 = 总额 ÷ 已摊天数，每天实时刷新</label>
+          <div style="padding-top:4px;"></div>
+        </div>
+      </div>
+      <div class="flex mt-12">
+        <button class="btn-primary" id="cd-save-btn" onclick="saveCountdown()">创建倒计时</button>
+        <button class="btn-ghost" id="cd-cancel-btn" style="display:none;" onclick="cancelEditCd()">取消</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📋 倒计时列表</h2>
+      <div id="countdown-list"></div>
+    </div>
+  </div>
+
+  <!-- 统计分析 -->
+  <div class="tab-content" id="tab-stats">
+    <div class="card">
+      <h2>⏱️ 统计周期</h2>
+      <div class="flex">
+        <select id="stat-period" onchange="updateStats()">
+          <option value="day">今日</option>
+          <option value="week">本周</option>
+          <option value="month" selected>本月</option>
+          <option value="year">本年</option>
+          <option value="all">全部</option>
+          <option value="custom">自定义</option>
+        </select>
+        <input type="date" id="stat-start" style="display:none" onchange="updateStats()">
+        <input type="date" id="stat-end" style="display:none" onchange="updateStats()">
+      </div>
+    </div>
+
+    <div class="stat-grid" id="stat-cards"></div>
+
+    <div class="card">
+      <h2>📈 分类消费占比</h2>
+      <div class="chart-container">
+        <div class="pie-wrap">
+          <canvas id="pie-chart"></canvas>
+          <div class="pie-center" id="pie-center"></div>
+        </div>
+        <div class="pie-legend" id="pie-legend"></div>
+        <div class="empty-state" id="pie-empty" style="display:none;">暂无数据</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📊 各分类消费明细</h2>
+      <div id="category-breakdown"></div>
+    </div>
+
+    <div class="card">
+      <h2>📉 均摊每日消费</h2>
+      <p class="text-secondary" style="margin-bottom:12px;">将各分类消费按天数均摊，得到每日平均消费金额</p>
+      <div id="amortized-table"></div>
+    </div>
+  </div>
+
+  <!-- 预算管理 -->
+  <div class="tab-content" id="tab-budget">
+    <div class="card">
+      <h2>🎯 当月预算</h2>
+      <div class="flex">
+        <select id="budget-month-select" onchange="renderBudget()"></select>
+        <input type="number" id="budget-amount-input" placeholder="输入基础额度" step="0.01" min="0" oninput="renderLimitPreview()">
+        <button class="btn-primary" onclick="setBudget()">设置额度</button>
+        <button class="btn-ghost" onclick="revokeBudget()">撤销额度</button>
+      </div>
+      <div id="budget-auto-hint" class="text-secondary" style="display:none; margin-top:10px; padding:10px 12px; background:var(--primary-bg); border-radius:8px; font-size:13px;"></div>
+      <div id="budget-overview"></div>
+    </div>
+
+    <div class="card">
+      <h2>🔄 预算结转规则</h2>
+      <p class="text-secondary" style="margin-bottom:12px;">
+        设置某月额度时，以你输入的金额为基础，自动加减上月结余的调整额：<br>
+        • 上月未花完：基础额度 <b>+</b> 结余 × <b>结余增加比例</b><br>
+        • 上月花超了：基础额度 <b>−</b> 超支 × <b>超支扣减比例</b><br>
+        <span class="text-secondary">例：10 月结余 200，比例 50%，11 月输入 2000 → 实际额度 2000 + 100 = 2100</span>
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>结余增加比例 (%)</label>
+          <input type="number" id="increase-ratio" min="0" max="100" step="1" value="50" onchange="saveRatios()">
+        </div>
+        <div class="form-group">
+          <label>超支扣减比例 (%)</label>
+          <input type="number" id="decrease-ratio" min="0" max="100" step="1" value="100" onchange="saveRatios()">
+        </div>
+      </div>
+      <div class="budget-info" id="carryover-info"></div>
+      <button class="btn-primary" onclick="applyCarryover()">💡 应用建议设置下月额度</button>
+    </div>
+
+    <div class="card">
+      <h2>📅 预算历史</h2>
+      <div id="budget-history"></div>
+    </div>
+  </div>
+
+  <!-- 分类设置 -->
+  <div class="tab-content" id="tab-categories">
+    <div class="card">
+      <h2>🏷️ 分类管理</h2>
+      <div class="flex">
+        <input type="text" id="new-major-name" placeholder="新增大分类名称">
+        <button class="btn-primary" onclick="addMajorCategory()">+ 新增大分类</button>
+      </div>
+      <div id="categories-tree" class="mt-16"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <h3>编辑子分类</h3>
+    <input type="hidden" id="edit-major-id">
+    <div class="form-group">
+      <label>子分类名称</label>
+      <input type="text" id="edit-sub-name">
+    </div>
+    <div class="flex mt-12">
+      <button class="btn-primary" onclick="confirmEditSub()">保存</button>
+      <button class="btn-ghost" onclick="closeModal()">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============ 数据层 ============
+const STORAGE_KEY = 'accounting_app_data';
+
+const defaultData = {
+  bills: [],
+  countdowns: [],
+  categories: [
+    { id: 'c1', name: '餐饮', icon: '🍜', subs: [{ id: 's1', name: '正餐' }, { id: 's2', name: '外卖' }, { id: 's3', name: '零食' }] },
+    { id: 'c2', name: '交通', icon: '🚗', subs: [{ id: 's4', name: '地铁' }, { id: 's5', name: '打车' }, { id: 's6', name: '加油' }] },
+    { id: 'c3', name: '购物', icon: '🛍️', subs: [{ id: 's7', name: '日用品' }, { id: 's8', name: '服饰' }, { id: 's9', name: '数码' }] },
+    { id: 'c4', name: '娱乐', icon: '🎮', subs: [{ id: 's10', name: '电影' }, { id: 's11', name: '游戏' }] },
+    { id: 'c5', name: '居家', icon: '🏠', subs: [{ id: 's12', name: '房租' }, { id: 's13', name: '水电' }, { id: 's14', name: '网费' }] },
+    { id: 'c6', name: '医疗', icon: '💊', subs: [{ id: 's15', name: '药品' }, { id: 's16', name: '挂号' }] },
+    { id: 'c7', name: '教育', icon: '📚', subs: [{ id: 's17', name: '书籍' }, { id: 's18', name: '课程' }] },
+    { id: 'c8', name: '其他', icon: '📦', subs: [{ id: 's19', name: '杂项' }] }
+  ],
+  budgets: {},
+  ratios: { increase: 50, decrease: 100 }
+};
+
+let data = loadData();
+let editingBillId = null;
+let storageOK = true;
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      return { ...defaultData, ...parsed, categories: parsed.categories || defaultData.categories };
+    }
+  } catch(e) { storageOK = false; console.warn('本地存储不可用，数据仅保存在当前页面内', e); }
+  return JSON.parse(JSON.stringify(defaultData));
+}
+
+function saveData() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+  } catch(e) {
+    storageOK = false;
+    console.warn('本地存储不可用，数据仅保存在当前页面内', e);
+    const tip = document.getElementById('storage-tip');
+    if (tip) tip.style.display = 'block';
+  }
+}
+
+function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
+
+// ============ 工具函数 ============
+function formatMoney(n) { return '¥' + Number(n || 0).toFixed(2); }
+function formatDate(ts) { return new Date(ts).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); }
+function getCategoryBadge(majorId) {
+  const map = { c1:'food', c2:'transport', c3:'shopping', c4:'entertainment', c5:'housing', c6:'health', c7:'education' };
+  return 'badge-' + (map[majorId] || 'other');
+}
+function findMajor(majorId) { return data.categories.find(c => c.id === majorId); }
+function findSub(majorId, subId) { const m = findMajor(majorId); return m ? m.subs.find(s => s.id === subId) : null; }
+
+// ============ Tab 切换 ============
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'stats') updateStats();
+    if (tab.dataset.tab === 'budget') renderBudget();
+    if (tab.dataset.tab === 'categories') renderCategories();
+    if (tab.dataset.tab === 'countdown') renderCountdowns();
+  });
+});
+
+// ============ 账单管理 ============
+function initBillForm() {
+  const majorSel = document.getElementById('bill-major');
+  const filterMajor = document.getElementById('filter-major');
+  majorSel.innerHTML = '<option value="">请选择</option>';
+  filterMajor.innerHTML = '<option value="">全部分类</option>';
+  data.categories.forEach(c => {
+    majorSel.innerHTML += `<option value="${c.id}">${c.icon} ${c.name}</option>`;
+    filterMajor.innerHTML += `<option value="${c.id}">${c.icon} ${c.name}</option>`;
+  });
+
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('bill-date').value = now.toISOString().slice(0, 16);
+  document.getElementById('filter-month').value = now.toISOString().slice(0, 7);
+
+  majorSel.onchange = () => {
+    const subSel = document.getElementById('bill-sub');
+    const m = findMajor(majorSel.value);
+    if (m) {
+      subSel.innerHTML = '<option value="">请选择</option>' + m.subs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+    } else {
+      subSel.innerHTML = '<option value="">请先选择大分类</option>';
+    }
+  };
+}
+
+function saveBill() {
+  const amount = parseFloat(document.getElementById('bill-amount').value);
+  const majorId = document.getElementById('bill-major').value;
+  const subId = document.getElementById('bill-sub').value;
+  const dateStr = document.getElementById('bill-date').value;
+  const note = document.getElementById('bill-note').value.trim();
+
+  if (!amount || amount <= 0) { alert('请输入有效金额'); return; }
+  if (!majorId) { alert('请选择大分类'); return; }
+  if (!dateStr) { alert('请选择记账时间'); return; }
+
+  const billData = {
+    amount, majorId, subId, note,
+    date: new Date(dateStr).getTime(),
+    updatedAt: Date.now()
+  };
+
+  if (editingBillId) {
+    const idx = data.bills.findIndex(b => b.id === editingBillId);
+    if (idx >= 0) data.bills[idx] = { ...data.bills[idx], ...billData };
+    editingBillId = null;
+    document.getElementById('form-title').textContent = '记一笔';
+    document.getElementById('bill-submit-btn').textContent = '保存账单';
+  } else {
+    billData.id = uid();
+    billData.createdAt = Date.now();
+    data.bills.push(billData);
+  }
+  saveData();
+  resetBillForm();
+  renderBills();
+  refreshViews();
+}
+
+// 数据变动后，若统计/预算页正处于打开状态则立即重算
+function refreshViews() {
+  if (document.getElementById('tab-stats').classList.contains('active')) updateStats();
+  if (document.getElementById('tab-budget').classList.contains('active')) renderBudget();
+}
+
+function resetBillForm() {
+  document.getElementById('bill-amount').value = '';
+  document.getElementById('bill-major').value = '';
+  document.getElementById('bill-sub').innerHTML = '<option value="">请先选择大分类</option>';
+  document.getElementById('bill-note').value = '';
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('bill-date').value = now.toISOString().slice(0, 16);
+}
+
+function cancelEdit() {
+  editingBillId = null;
+  document.getElementById('form-title').textContent = '记一笔';
+  document.getElementById('bill-submit-btn').textContent = '保存账单';
+  resetBillForm();
+}
+
+function editBill(id) {
+  const bill = data.bills.find(b => b.id === id);
+  if (!bill) return;
+  editingBillId = id;
+  document.getElementById('bill-amount').value = bill.amount;
+  document.getElementById('bill-major').value = bill.majorId;
+  document.getElementById('bill-major').onchange();
+  document.getElementById('bill-sub').value = bill.subId || '';
+  document.getElementById('bill-note').value = bill.note || '';
+  const d = new Date(bill.date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  document.getElementById('bill-date').value = d.toISOString().slice(0, 16);
+  document.getElementById('form-title').textContent = '编辑账单';
+  document.getElementById('bill-submit-btn').textContent = '更新账单';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function deleteBill(id) {
+  if (!confirm('确定删除这笔账单吗？')) return;
+  data.bills = data.bills.filter(b => b.id !== id);
+  saveData();
+  renderBills();
+  refreshViews();
+}
+
+function renderBills() {
+  const filterMajor = document.getElementById('filter-major').value;
+  const filterMonth = document.getElementById('filter-month').value;
+  let bills = [...data.bills].sort((a, b) => b.date - a.date);
+
+  if (filterMajor) bills = bills.filter(b => b.majorId === filterMajor);
+  if (filterMonth) {
+    const [y, m] = filterMonth.split('-').map(Number);
+    bills = bills.filter(b => {
+      const d = new Date(b.date);
+      return d.getFullYear() === y && d.getMonth() === m - 1;
+    });
+  }
+
+  const container = document.getElementById('bills-list');
+  if (bills.length === 0) {
+    container.innerHTML = '<div class="empty-state">暂无账单记录</div>';
+    return;
+  }
+
+  const total = bills.reduce((s, b) => s + b.amount, 0);
+  container.innerHTML = `
+    <div style="margin-bottom:12px;" class="text-secondary">共 ${bills.length} 笔，合计 <span class="amount">${formatMoney(total)}</span></div>
+    <div class="table-wrap table-mobile"><table>
+      <thead><tr><th>时间</th><th>大分类</th><th>子分类</th><th>金额</th><th>备注</th><th>操作</th></tr></thead>
+      <tbody>
+        ${bills.map(b => {
+          const m = findMajor(b.majorId);
+          const s = findSub(b.majorId, b.subId);
+          return `<tr>
+            <td data-label="时间">${formatDate(b.date)}</td>
+            <td data-label="分类"><span class="badge ${getCategoryBadge(b.majorId)}">${m ? m.icon + ' ' + m.name : '未知'}</span></td>
+            <td data-label="子分类">${s ? s.name : '-'}</td>
+            <td data-label="金额" class="font-bold">${formatMoney(b.amount)}</td>
+            <td data-label="备注" class="text-secondary">${b.note || '-'}</td>
+            <td data-label="操作">
+              <button class="btn-ghost btn-sm" onclick="editBill('${b.id}')">编辑</button>
+              <button class="btn-danger btn-sm" onclick="deleteBill('${b.id}')">删除</button>
+            </td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table></div>
+  `;
+}
+
+// ============ 统计分析 ============
+let pieDataCache = [];
+
+function getDateRange(period) {
+  const now = new Date();
+  let start, end;
+  if (period === 'day') {
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    end = new Date(start.getTime() + 86400000);
+  } else if (period === 'week') {
+    const day = now.getDay() || 7;
+    start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day + 1);
+    end = new Date(start.getTime() + 7 * 86400000);
+  } else if (period === 'month') {
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  } else if (period === 'year') {
+    start = new Date(now.getFullYear(), 0, 1);
+    end = new Date(now.getFullYear() + 1, 0, 1);
+  } else if (period === 'all') {
+    start = new Date(0);
+    end = new Date(8640000000000000);
+  } else if (period === 'custom') {
+    const s = document.getElementById('stat-start').value;
+    const e = document.getElementById('stat-end').value;
+    if (!s || !e) return null;
+    start = new Date(s);
+    end = new Date(new Date(e).getTime() + 86400000);
+  }
+  return { start: start.getTime(), end: end.getTime() };
+}
+
+function updateStats() {
+  const period = document.getElementById('stat-period').value;
+  document.getElementById('stat-start').style.display = period === 'custom' ? 'block' : 'none';
+  document.getElementById('stat-end').style.display = period === 'custom' ? 'block' : 'none';
+  if (period === 'custom') {
+    if (!document.getElementById('stat-start').value) return;
+  }
+
+  const range = getDateRange(period);
+  if (!range) return;
+
+  const bills = data.bills.filter(b => b.date >= range.start && b.date < range.end);
+  const total = bills.reduce((s, b) => s + b.amount, 0);
+
+  // 按大分类汇总
+  const byMajor = {};
+  bills.forEach(b => {
+    byMajor[b.majorId] = (byMajor[b.majorId] || 0) + b.amount;
+  });
+
+  // 按子分类汇总
+  const bySub = {};
+  bills.forEach(b => {
+    const key = b.majorId + '|' + (b.subId || '');
+    bySub[key] = (bySub[key] || 0) + b.amount;
+  });
+
+  // 已过天数（含今天）：日均与均摊均以此为分母
+  let elapsedDays;
+  if (period === 'all') {
+    const firstTs = bills.length ? Math.min(...bills.map(b => b.date)) : Date.now();
+    const firstDay = new Date(firstTs); firstDay.setHours(0, 0, 0, 0);
+    elapsedDays = Math.max(1, Math.ceil((Date.now() - firstDay.getTime()) / 86400000));
+  } else {
+    const elapsedEnd = Math.min(range.end, Date.now());
+    elapsedDays = Math.max(1, Math.ceil((elapsedEnd - range.start) / 86400000));
+  }
+  const dailyAvg = total / elapsedDays;
+
+  // 统计卡片
+  document.getElementById('stat-cards').innerHTML = `
+    <div class="stat-card"><div class="stat-label">总消费</div><div class="stat-value">${formatMoney(total)}</div><div class="stat-sub">${bills.length} 笔账单</div></div>
+    <div class="stat-card green"><div class="stat-label">日均已消费</div><div class="stat-value">${formatMoney(dailyAvg)}</div><div class="stat-sub">已过 ${elapsedDays} 天</div></div>
+    <div class="stat-card orange"><div class="stat-label">笔均消费</div><div class="stat-value">${formatMoney(bills.length ? total / bills.length : 0)}</div></div>
+    <div class="stat-card purple"><div class="stat-label">最大单笔</div><div class="stat-value">${formatMoney(bills.length ? Math.max(...bills.map(b => b.amount)) : 0)}</div></div>
+  `;
+
+  // 饼图
+  const pieData = Object.entries(byMajor).map(([id, val]) => {
+    const m = findMajor(id);
+    return { label: m ? m.icon + ' ' + m.name : '未知', value: val };
+  });
+  renderPieChart(pieData);
+
+  // 分类明细
+  renderCategoryBreakdown(byMajor, bySub, total);
+
+  // 均摊表
+  renderAmortized(byMajor, elapsedDays, total);
+}
+
+const PIE_COLORS = ['#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16'];
+
+function renderPieChart(pieData) {
+  pieDataCache = pieData;
+  const canvas = document.getElementById('pie-chart');
+  const empty = document.getElementById('pie-empty');
+  const legend = document.getElementById('pie-legend');
+  const center = document.getElementById('pie-center');
+  const wrap = canvas.parentElement;
+
+  if (pieData.length === 0) {
+    wrap.style.display = 'none';
+    legend.style.display = 'none';
+    canvas.style.display = 'none';
+    empty.style.display = 'block';
+    return;
+  }
+  wrap.style.display = 'block';
+  canvas.style.display = 'block';
+  legend.style.display = '';
+  empty.style.display = 'none';
+
+  const total = pieData.reduce((s, d) => s + d.value, 0);
+  legend.innerHTML = pieData.map((d, i) => `
+    <div class="pie-legend-item">
+      <span class="pie-legend-dot" style="background:${PIE_COLORS[i % PIE_COLORS.length]}"></span>
+      <span class="pie-legend-name">${d.label}</span>
+      <span class="pie-legend-value">${formatMoney(d.value)}</span>
+      <span class="pie-legend-pct">${(d.value / total * 100).toFixed(1)}%</span>
+    </div>`).join('');
+  center.innerHTML = `<div class="amount">${formatMoney(total)}</div><div class="label">总消费</div>`;
+  drawDonutChart();
+}
+
+// 轻量 Canvas 环形图，替代 Chart.js（减少 190KB 体积与初始化开销）
+function drawDonutChart() {
+  const canvas = document.getElementById('pie-chart');
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const w = rect.width, h = rect.height;
+  ctx.clearRect(0, 0, w, h);
+
+  const items = pieDataCache;
+  const total = items.reduce((s, d) => s + d.value, 0);
+  if (!total) return;
+
+  const cx = w / 2, cy = h / 2;
+  const outer = Math.min(w, h) / 2 - 8;
+  const inner = outer * 0.62;
+  const mid = (outer + inner) / 2;
+  const thickness = outer - inner;
+  const gap = items.length > 1 ? 0.03 : 0;
+  let start = -Math.PI / 2;
+  items.forEach((d, i) => {
+    const angle = d.value / total * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(cx, cy, mid, start + gap / 2, start + angle - gap / 2);
+    ctx.strokeStyle = PIE_COLORS[i % PIE_COLORS.length];
+    ctx.lineWidth = thickness;
+    ctx.lineCap = 'butt';
+    ctx.stroke();
+    start += angle;
+  });
+}
+
+let pieResizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(pieResizeTimer);
+  pieResizeTimer = setTimeout(drawDonutChart, 150);
+});
+
+function renderCategoryBreakdown(byMajor, bySub, total) {
+  const sorted = Object.entries(byMajor).sort((a, b) => b[1] - a[1]);
+  if (sorted.length === 0) {
+    document.getElementById('category-breakdown').innerHTML = '<div class="empty-state">暂无数据</div>';
+    return;
+  }
+  let html = '<div class="table-wrap"><table><thead><tr><th>大分类</th><th>子分类</th><th>金额</th><th>占比</th></tr></thead><tbody>';
+  sorted.forEach(([majorId, majorVal]) => {
+    const m = findMajor(majorId);
+    const pct = total ? (majorVal / total * 100).toFixed(1) : 0;
+    html += `<tr class="font-bold"><td><span class="badge ${getCategoryBadge(majorId)}">${m ? m.icon + ' ' + m.name : '未知'}</span></td><td>小计</td><td>${formatMoney(majorVal)}</td><td>${pct}%</td></tr>`;
+    const subs = Object.entries(bySub).filter(([k]) => k.startsWith(majorId + '|')).sort((a, b) => b[1] - a[1]);
+    subs.forEach(([key, val]) => {
+      const subId = key.split('|')[1];
+      const s = findSub(majorId, subId);
+      html += `<tr><td></td><td>${s ? s.name : '未分类'}</td><td>${formatMoney(val)}</td><td>${total ? (val / total * 100).toFixed(1) : 0}%</td></tr>`;
+    });
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('category-breakdown').innerHTML = html;
+}
+
+function renderAmortized(byMajor, days, total) {
+  const sorted = Object.entries(byMajor).sort((a, b) => b[1] - a[1]);
+  if (sorted.length === 0) {
+    document.getElementById('amortized-table').innerHTML = '<div class="empty-state">暂无数据</div>';
+    return;
+  }
+  let html = `<div style="margin-bottom:12px;" class="text-secondary">按已过 <b>${days}</b> 天均摊（含今天）</div>`;
+  html += '<div class="table-wrap"><table><thead><tr><th>分类</th><th>周期总消费</th><th>均摊每日消费</th><th>占日均比例</th></tr></thead><tbody>';
+  const dailyTotal = total / days;
+  sorted.forEach(([majorId, val]) => {
+    const m = findMajor(majorId);
+    const daily = val / days;
+    html += `<tr>
+      <td><span class="badge ${getCategoryBadge(majorId)}">${m ? m.icon + ' ' + m.name : '未知'}</span></td>
+      <td>${formatMoney(val)}</td>
+      <td class="font-bold">${formatMoney(daily)}</td>
+      <td>${dailyTotal ? (daily / dailyTotal * 100).toFixed(1) : 0}%</td>
+    </tr>`;
+  });
+  html += `<tr class="font-bold" style="background:var(--primary-bg);">
+    <td>合计</td><td>${formatMoney(total)}</td><td>${formatMoney(dailyTotal)}</td><td>100%</td>
+  </tr>`;
+  html += '</tbody></table></div>';
+  document.getElementById('amortized-table').innerHTML = html;
+}
+
+// ============ 预算管理 ============
+function getMonthStr(date) { return date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'); }
+
+function getMonthBills(monthStr) {
+  const [y, m] = monthStr.split('-').map(Number);
+  return data.bills.filter(b => {
+    const d = new Date(b.date);
+    return d.getFullYear() === y && d.getMonth() === m - 1;
+  });
+}
+
+function initBudgetMonthSelect() {
+  const sel = document.getElementById('budget-month-select');
+  const now = new Date();
+  sel.innerHTML = '';
+  for (let i = -2; i <= 3; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+    const str = getMonthStr(d);
+    const label = str + (i === 0 ? ' (本月)' : '');
+    sel.innerHTML += `<option value="${str}" ${i === 0 ? 'selected' : ''}>${label}</option>`;
+  }
+  sel.onchange = renderBudget;
+}
+
+function setBudget() {
+  const month = document.getElementById('budget-month-select').value;
+  const raw = document.getElementById('budget-amount-input').value;
+  const base = parseFloat(raw);
+  if (raw === '' || isNaN(base) || base < 0) { alert('请输入有效额度'); return; }
+
+  const budgetSet = hasBudget(month);
+  const carry = budgetSet ? null : getPrevCarryover(month);
+  const adjust = carry ? carry.adjust : 0;
+  const final = Math.max(0, round2(base + adjust));
+
+  data.budgets[month] = final;
+  saveData();
+  renderBudget();
+  if (adjust) {
+    alert(`${month} 额度已设置为 ${formatMoney(final)}\n（基础 ${formatMoney(base)} ${adjust > 0 ? '+' : '−'} 上月${adjust > 0 ? '结余' : '超支'}调整 ${formatMoney(Math.abs(adjust))}）`);
+  } else {
+    alert(`${month} 预算已设置为 ${formatMoney(final)}`);
+  }
+}
+
+function hasBudget(month) { return Object.prototype.hasOwnProperty.call(data.budgets, month); }
+
+// 撤销当月额度：删除后该月回到未设置状态，再次设置会重新按结转规则计算
+function revokeBudget() {
+  const month = document.getElementById('budget-month-select').value;
+  if (!hasBudget(month)) { alert(`${month} 尚未设置额度，无需撤销`); return; }
+  if (!confirm(`确定撤销 ${month} 的额度 ${formatMoney(data.budgets[month])} 吗？\n撤销后再次设置额度，将重新按上月结转规则计算。`)) return;
+  delete data.budgets[month];
+  saveData();
+  renderBudget();
+  alert(`${month} 额度已撤销`);
+}
+function round2(n) { return Math.round(n * 100) / 100; }
+
+function prevMonthStr(month) {
+  const [y, m] = month.split('-').map(Number);
+  return getMonthStr(new Date(y, m - 2, 1));
+}
+
+// 上月结转带来的调整额：结余按增加比例加，超支按扣减比例减
+function getPrevCarryover(month) {
+  const prevMonth = prevMonthStr(month);
+  if (!hasBudget(prevMonth)) return null;
+  const prevBudget = data.budgets[prevMonth];
+  const spent = getMonthBills(prevMonth).reduce((s, b) => s + b.amount, 0);
+  const diff = round2(prevBudget - spent);
+  const ratio = diff >= 0 ? data.ratios.increase : data.ratios.decrease;
+  const adjust = round2(diff * ratio / 100);
+  return { prevMonth, prevBudget, spent, diff, ratio, adjust };
+}
+
+// 输入额度时实时预告：基础额度 ± 上月结转调整 = 最终额度
+function renderLimitPreview() {
+  const hint = document.getElementById('budget-auto-hint');
+  if (!hint) return;
+  const month = document.getElementById('budget-month-select').value;
+  const raw = document.getElementById('budget-amount-input').value;
+  const base = parseFloat(raw);
+
+  if (hasBudget(month)) {
+    hint.style.display = 'block';
+    hint.innerHTML = `该月额度已设置，保存将直接覆盖为输入值，不再自动调整。`;
+    return;
+  }
+
+  const carry = getPrevCarryover(month);
+  if (!carry) {
+    hint.style.display = 'block';
+    hint.innerHTML = `${prevMonthStr(month)} 未设置额度，本月额度将按输入值直接保存。`;
+    return;
+  }
+
+  const label = carry.diff >= 0 ? '结余' : '超支';
+  const sign = carry.adjust >= 0 ? '+' : '−';
+  if (raw === '' || isNaN(base)) {
+    hint.style.display = 'block';
+    hint.innerHTML = `${carry.prevMonth} 有${label} ${formatMoney(Math.abs(carry.diff))}，按 ${carry.ratio}% 调整 ${sign}${formatMoney(Math.abs(carry.adjust))}。输入基础额度后自动计算最终额度。`;
+    return;
+  }
+
+  const final = Math.max(0, round2(base + carry.adjust));
+  hint.style.display = 'block';
+  hint.innerHTML = `基础额度 ${formatMoney(base)} ${sign} ${carry.prevMonth}${label} ${formatMoney(Math.abs(carry.diff))} × ${carry.ratio}% = 最终额度 <b class="amount">${formatMoney(final)}</b>`;
+}
+
+function renderBudget() {
+  const month = document.getElementById('budget-month-select').value;
+  const budgetSet = hasBudget(month);
+  const budget = budgetSet ? data.budgets[month] : 0;
+  const bills = getMonthBills(month);
+  const spent = bills.reduce((s, b) => s + b.amount, 0);
+  const remaining = budget - spent;
+
+  // 剩余天数
+  const now = new Date();
+  const [y, m] = month.split('-').map(Number);
+  const isCurrentMonth = now.getFullYear() === y && now.getMonth() === m - 1;
+  let remainingDays;
+  if (isCurrentMonth) {
+    const daysInMonth = new Date(y, m, 0).getDate();
+    remainingDays = daysInMonth - now.getDate() + 1;
+  } else if (now < new Date(y, m - 1, 1)) {
+    remainingDays = new Date(y, m, 0).getDate();
+  } else {
+    remainingDays = 0;
+  }
+
+  const dailyAllowance = remainingDays > 0 ? remaining / remainingDays : 0;
+  const pct = budget ? (spent / budget * 100) : 0;
+  const fillClass = pct > 100 ? 'danger' : pct > 80 ? 'warn' : '';
+
+  document.getElementById('budget-amount-input').value = budgetSet ? budget : '';
+  renderLimitPreview();
+
+  document.getElementById('budget-overview').innerHTML = `
+    <div class="budget-info">
+      <div class="flex-between">
+        <span>月度额度</span><span class="font-bold">${formatMoney(budget)}</span>
+      </div>
+      <div class="flex-between mt-12">
+        <span>已消费</span><span class="font-bold">${formatMoney(spent)}</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${Math.min(100, pct)}%"></div></div>
+      <div class="flex-between">
+        <span class="text-secondary">进度 ${pct.toFixed(1)}%</span>
+        <span class="${remaining >= 0 ? 'text-success' : 'text-danger'}">${remaining >= 0 ? '剩余' : '超支'} ${formatMoney(Math.abs(remaining))}</span>
+      </div>
+    </div>
+    <div class="stat-grid">
+      <div class="stat-card ${remaining >= 0 ? '' : 'red'}">
+        <div class="stat-label">每日可消费</div>
+        <div class="stat-value">${formatMoney(Math.max(0, dailyAllowance))}</div>
+        <div class="stat-sub">剩余 ${remainingDays} 天</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-label">本月已花</div>
+        <div class="stat-value">${formatMoney(spent)}</div>
+        <div class="stat-sub">${bills.length} 笔</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">日均消费</div>
+        <div class="stat-value">${formatMoney(spent / Math.max(1, now.getDate()))}</div>
+        <div class="stat-sub">按已过天数</div>
+      </div>
+    </div>
+  `;
+
+  renderCarryoverInfo();
+  renderBudgetHistory();
+}
+
+function renderCarryoverInfo() {
+  const month = document.getElementById('budget-month-select').value;
+  const budget = data.budgets[month] || 0;
+  const bills = getMonthBills(month);
+  const spent = bills.reduce((s, b) => s + b.amount, 0);
+  const diff = budget - spent;
+
+  const [y, m] = month.split('-').map(Number);
+  const nextMonth = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`;
+
+  document.getElementById('increase-ratio').value = data.ratios.increase;
+  document.getElementById('decrease-ratio').value = data.ratios.decrease;
+
+  let suggested = budget;
+  let info = '';
+  if (budget > 0) {
+    if (diff > 0) {
+      const add = diff * (data.ratios.increase / 100);
+      suggested = budget + add;
+      info = `<span class="text-success">本月结余 ${formatMoney(diff)}</span>，按 ${data.ratios.increase}% 比例增加，建议下月额度：<b class="amount">${formatMoney(suggested)}</b>`;
+    } else if (diff < 0) {
+      const over = -diff;
+      const cut = over * (data.ratios.decrease / 100);
+      suggested = Math.max(0, budget - cut);
+      info = `<span class="text-danger">本月超支 ${formatMoney(over)}</span>，按 ${data.ratios.decrease}% 比例扣减，建议下月额度：<b class="amount">${formatMoney(suggested)}</b>`;
+    } else {
+      info = '本月刚好花完，建议下月额度保持不变';
+    }
+  } else {
+    info = '请先设置本月预算额度';
+  }
+  suggested = Math.round(suggested * 100) / 100;
+
+  document.getElementById('carryover-info').innerHTML = `
+    <div><b>${month} → ${nextMonth}</b></div>
+    <div class="mt-12">${info}</div>
+  `;
+  document.getElementById('carryover-info').dataset.nextMonth = nextMonth;
+  document.getElementById('carryover-info').dataset.suggested = suggested;
+}
+
+function applyCarryover() {
+  const info = document.getElementById('carryover-info');
+  const nextMonth = info.dataset.nextMonth;
+  const suggested = parseFloat(info.dataset.suggested);
+  if (isNaN(suggested) || suggested < 0) { alert('暂无可应用的建议额度'); return; }
+  if (confirm(`将 ${nextMonth} 的额度设置为 ${formatMoney(suggested)}？`)) {
+    data.budgets[nextMonth] = suggested;
+    saveData();
+    // 切换到下月
+    const sel = document.getElementById('budget-month-select');
+    let opt = [...sel.options].find(o => o.value === nextMonth);
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = nextMonth;
+      opt.textContent = nextMonth;
+      sel.appendChild(opt);
+    }
+    sel.value = nextMonth;
+    renderBudget();
+  }
+}
+
+function saveRatios() {
+  data.ratios.increase = parseFloat(document.getElementById('increase-ratio').value) || 0;
+  data.ratios.decrease = parseFloat(document.getElementById('decrease-ratio').value) || 0;
+  saveData();
+  renderCarryoverInfo();
+  renderLimitPreview();
+}
+
+function renderBudgetHistory() {
+  const months = Object.keys(data.budgets).sort().reverse().slice(0, 12);
+  if (months.length === 0) {
+    document.getElementById('budget-history').innerHTML = '<div class="empty-state">暂无预算记录</div>';
+    return;
+  }
+  let html = '<div class="table-wrap"><table><thead><tr><th>月份</th><th>预算</th><th>实际消费</th><th>结余/超支</th><th>执行率</th></tr></thead><tbody>';
+  months.forEach(month => {
+    const budget = data.budgets[month];
+    const spent = getMonthBills(month).reduce((s, b) => s + b.amount, 0);
+    const diff = budget - spent;
+    const pct = budget ? (spent / budget * 100).toFixed(1) : 0;
+    html += `<tr>
+      <td>${month}</td>
+      <td>${formatMoney(budget)}</td>
+      <td>${formatMoney(spent)}</td>
+      <td class="${diff >= 0 ? 'text-success' : 'text-danger'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}</td>
+      <td>${pct}%</td>
+    </tr>`;
+  });
+  html += '</tbody></table></div>';
+  document.getElementById('budget-history').innerHTML = html;
+}
+
+// ============ 分类管理 ============
+function addMajorCategory() {
+  const name = document.getElementById('new-major-name').value.trim();
+  if (!name) { alert('请输入分类名称'); return; }
+  data.categories.push({ id: uid(), name, icon: '🏷️', subs: [] });
+  document.getElementById('new-major-name').value = '';
+  saveData();
+  renderCategories();
+  initBillForm();
+}
+
+function deleteMajor(id) {
+  const used = data.bills.some(b => b.majorId === id);
+  if (used) { alert('该分类下有账单记录，无法删除'); return; }
+  if (!confirm('确定删除该分类及其子分类吗？')) return;
+  data.categories = data.categories.filter(c => c.id !== id);
+  saveData();
+  renderCategories();
+  initBillForm();
+}
+
+function addSubCategory(majorId) {
+  const name = prompt('请输入子分类名称：');
+  if (!name) return;
+  const m = findMajor(majorId);
+  if (m) {
+    m.subs.push({ id: uid(), name: name.trim() });
+    saveData();
+    renderCategories();
+    initBillForm();
+  }
+}
+
+function editSubCategory(majorId, subId) {
+  const s = findSub(majorId, subId);
+  if (!s) return;
+  document.getElementById('edit-major-id').value = majorId + '|' + subId;
+  document.getElementById('edit-sub-name').value = s.name;
+  document.getElementById('edit-modal').classList.add('active');
+}
+
+function confirmEditSub() {
+  const [majorId, subId] = document.getElementById('edit-major-id').value.split('|');
+  const name = document.getElementById('edit-sub-name').value.trim();
+  if (!name) { alert('请输入名称'); return; }
+  const s = findSub(majorId, subId);
+  if (s) { s.name = name; saveData(); renderCategories(); initBillForm(); }
+  closeModal();
+}
+
+function deleteSubCategory(majorId, subId) {
+  const used = data.bills.some(b => b.majorId === majorId && b.subId === subId);
+  if (used) { alert('该子分类有账单记录，无法删除'); return; }
+  const m = findMajor(majorId);
+  if (m) {
+    m.subs = m.subs.filter(s => s.id !== subId);
+    saveData();
+    renderCategories();
+    initBillForm();
+  }
+}
+
+function closeModal() {
+  document.getElementById('edit-modal').classList.remove('active');
+}
+
+function renderCategories() {
+  const tree = document.getElementById('categories-tree');
+  tree.innerHTML = data.categories.map(m => `
+    <div class="toggle-section">
+      <div class="toggle-header" onclick="this.nextElementSibling.classList.toggle('open')">
+        <span class="font-bold">${m.icon} ${m.name} <span class="text-secondary">(${m.subs.length})</span></span>
+        <span>
+          <button class="btn-ghost btn-sm" onclick="event.stopPropagation(); addSubCategory('${m.id}')">+ 子分类</button>
+          <button class="btn-danger btn-sm" onclick="event.stopPropagation(); deleteMajor('${m.id}')">删除</button>
+        </span>
+      </div>
+      <div class="toggle-body">
+        ${m.subs.length === 0 ? '<div class="text-secondary">暂无子分类</div>' : m.subs.map(s => `
+          <div class="flex-between" style="padding:8px 0; border-bottom:1px solid var(--border);">
+            <span>${s.name}</span>
+            <span>
+              <button class="btn-ghost btn-sm" onclick="editSubCategory('${m.id}','${s.id}')">编辑</button>
+              <button class="btn-danger btn-sm" onclick="deleteSubCategory('${m.id}','${s.id}')">删除</button>
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============ 倒计时 ============
+let editingCdId = null;
+
+function onCdModeChange() {
+  const mode = document.querySelector('input[name="cd-mode"]:checked').value;
+  document.getElementById('cd-time-range').style.display = mode === 'time' ? '' : 'none';
+}
+
+function renderCountdowns() {
+  const list = document.getElementById('countdown-list');
+  if (!data.countdowns || data.countdowns.length === 0) {
+    list.innerHTML = '<div class="cd-empty">还没有倒计时，上方创建一个吧～</div>';
+    return;
+  }
+  const now = Date.now();
+  list.innerHTML = data.countdowns.map(cd => {
+    // 兼容旧数据：带 endDate 或 planDays 的自动清理；旧的按金额记录折算为 1 次
+    if (cd.endDate || cd.planDays) { cd.endDate = null; cd.planDays = null; saveData(); }
+    if (cd.mode === 'manual' && cd.records) {
+      let changed = false;
+      cd.records.forEach(r => { if (r.count === undefined) { r.count = 1; delete r.amount; changed = true; } });
+      if (changed) saveData();
+    }
+    const progress = getCdProgress(cd, now);
+    const ended = progress.ended;
+
+    let subText = '';
+    if (cd.mode === 'time') {
+      if (cd.frozen) subText = `⏸ ${formatDateShort(cd.frozen.at)} 起已停止分摊（当时已摊 ${cd.frozen.elapsedDays} 天）`;
+      else if (cd.startDate > now) subText = `📅 未开始（距开始 ${Math.ceil((cd.startDate - now)/86400000)} 天）`;
+      else subText = `📅 ${formatDateShort(cd.startDate)} 起（已摊 ${progress.elapsedDays} 天）`;
+    } else {
+      subText = `🔢 已记 ${progress.totalCount} 次`;
+    }
+
+    let recordsHtml = '';
+    if (cd.mode === 'manual' && cd.records && cd.records.length > 0) {
+      recordsHtml = `<div class="cd-records">
+        ${cd.records.slice(-5).reverse().map(r => `<div class="cd-record-row"><span>${formatDateShort(r.ts)}</span><span class="cd-record-amount">${r.count} 次</span></div>`).join('')}
+      </div>`;
+      if (cd.records.length > 5) {
+        recordsHtml += `<div class="text-secondary" style="font-size:11px; text-align:right; margin-top:4px;">共 ${cd.records.length} 笔，仅显示最近 5 笔</div>`;
+      }
+    }
+
+    return `<div class="cd-item">
+      <div class="cd-header">
+        <div>
+          <div class="cd-name">${escapeHtml(cd.name)}<span class="cd-mode-tag ${cd.mode === 'manual' ? 'manual' : ''}">${cd.mode === 'time' ? '时间平摊' : '按次数扣减'}</span></div>
+          <div class="cd-meta">${subText}</div>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          ${cd.mode === 'manual' && !ended ? `<button class="btn-primary btn-sm" onclick="openCdDeduct('${cd.id}')">扣减</button>` : ''}
+          ${cd.mode === 'time' ? (cd.frozen
+            ? `<button class="btn-primary btn-sm" onclick="resumeCountdown('${cd.id}')">恢复分摊</button>`
+            : `<button class="btn-ghost btn-sm" onclick="stopCountdown('${cd.id}')">停止分摊</button>`) : ''}
+          <button class="btn-ghost btn-sm" onclick="editCountdown('${cd.id}')">编辑</button>
+          <button class="btn-danger btn-sm" onclick="deleteCountdown('${cd.id}')">删除</button>
+        </div>
+      </div>
+
+      <div class="cd-numbers">
+        ${cd.mode === 'time'
+          ? `<div class="cd-num-box"><div class="cd-num-label">日均金额</div><div class="cd-num-value paid">${formatMoney(progress.dailyAvg)}</div></div>
+             <div class="cd-num-box"><div class="cd-num-label">总额</div><div class="cd-num-value total">${formatMoney(cd.totalAmount)}</div></div>`
+          : `<div class="cd-num-box"><div class="cd-num-label">次均金额</div><div class="cd-num-value paid">${formatMoney(progress.perCountAvg)}</div></div>
+             <div class="cd-num-box"><div class="cd-num-label">总额</div><div class="cd-num-value total">${formatMoney(cd.totalAmount)}</div></div>`
+        }
+      </div>
+
+      ${recordsHtml}
+    </div>`;
+  }).join('');
+}
+
+function getCdProgress(cd, now) {
+  if (cd.mode === 'manual') {
+    const totalCount = (cd.records || []).reduce((s, r) => s + Number(r.count || 0), 0);
+    // 按次数分摊：次均金额 = 总额 ÷ 累计次数
+    const perCountAvg = totalCount > 0 ? cd.totalAmount / totalCount : cd.totalAmount;
+    return { paid: cd.totalAmount, ended: false, totalCount, perCountAvg, elapsedDays: null, dailyAvg: null };
+  }
+  // 已停止分摊：锁定停止时刻的金额，不再随天数增长
+  if (cd.frozen) {
+    return { paid: cd.frozen.paid, ended: false, elapsedDays: cd.frozen.elapsedDays, dailyAvg: cd.frozen.dailyAvg };
+  }
+  // 时间平摊：只需要起始日期 + 总额。日均金额 = 总额 ÷ 已摊天数
+  if (!cd.startDate) return { paid: 0, ended: false, elapsedDays: 0, dailyAvg: 0 };
+  const s = new Date(cd.startDate); s.setHours(0,0,0,0);
+  const n = new Date(now); n.setHours(0,0,0,0);
+  if (n <= s) return { paid: 0, ended: false, elapsedDays: 0, dailyAvg: 0 };
+  const elapsedDays = Math.max(1, Math.round((n - s) / 86400000));
+  const dailyAvg = cd.totalAmount / elapsedDays;
+  return { paid: cd.totalAmount, ended: false, elapsedDays, dailyAvg };
+}
+
+function saveCountdown() {
+  const name = document.getElementById('cd-name').value.trim();
+  const total = parseFloat(document.getElementById('cd-total').value);
+  const mode = document.querySelector('input[name="cd-mode"]:checked').value;
+
+  if (!name) return alert('请输入名称');
+  if (!total || total <= 0) return alert('请输入有效的总金额');
+
+  let cd = editingCdId ? data.countdowns.find(c => c.id === editingCdId) : null;
+  if (!cd) cd = { id: uid(), name, totalAmount: total, mode, records: [], createdAt: Date.now() };
+  else { cd.name = name; cd.totalAmount = total; cd.mode = mode; }
+
+  if (mode === 'time') {
+    const startVal = document.getElementById('cd-start').value;
+    if (!startVal) return alert('时间平摊需要选择起始日期');
+    const start = new Date(startVal); start.setHours(0,0,0,0);
+    // 起始日期变了，解锁已停止的分摊，按新日期重新计算
+    if (cd.startDate !== start.getTime()) cd.frozen = null;
+    cd.startDate = start.getTime();
+    cd.endDate = null; cd.planDays = null; cd.records = [];
+  } else {
+    cd.startDate = null; cd.endDate = null; cd.planDays = null; cd.frozen = null;
+  }
+
+  if (!editingCdId) data.countdowns.push(cd);
+  saveData();
+  renderCountdowns();
+  resetCdForm();
+}
+
+function editCountdown(id) {
+  const cd = data.countdowns.find(c => c.id === id);
+  if (!cd) return;
+  editingCdId = id;
+  document.getElementById('cd-form-title').textContent = '编辑倒计时';
+  document.getElementById('cd-save-btn').textContent = '保存修改';
+  document.getElementById('cd-cancel-btn').style.display = '';
+  document.getElementById('cd-name').value = cd.name;
+  document.getElementById('cd-total').value = cd.totalAmount;
+  document.querySelector(`input[name="cd-mode"][value="${cd.mode}"]`).checked = true;
+  onCdModeChange();
+  if (cd.mode === 'time' && cd.startDate) {
+    document.getElementById('cd-start').value = new Date(cd.startDate).toISOString().slice(0, 10);
+  }
+  document.getElementById('tab-countdown').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEditCd() { editingCdId = null; resetCdForm(); }
+
+function resetCdForm() {
+  editingCdId = null;
+  document.getElementById('cd-form-title').textContent = '新建倒计时';
+  document.getElementById('cd-save-btn').textContent = '创建倒计时';
+  document.getElementById('cd-cancel-btn').style.display = 'none';
+  document.getElementById('cd-name').value = '';
+  document.getElementById('cd-total').value = '';
+  document.getElementById('cd-start').value = '';
+  document.querySelector('input[name="cd-mode"][value="time"]').checked = true;
+  onCdModeChange();
+}
+
+// 停止分摊：锁定当前已摊金额，之后不再随日期增长
+function stopCountdown(id) {
+  const cd = data.countdowns.find(c => c.id === id);
+  if (!cd) return;
+  if (!confirm(`确定停止"${cd.name}"的分摊？\n停止后日均金额和进度将保持当前数值不再变化。`)) return;
+  const p = getCdProgress(cd, Date.now());
+  cd.frozen = { paid: p.paid, dailyAvg: p.dailyAvg, elapsedDays: p.elapsedDays, at: Date.now() };
+  saveData();
+  renderCountdowns();
+}
+
+// 恢复分摊：解除锁定，按起始日期继续实时计算
+function resumeCountdown(id) {
+  const cd = data.countdowns.find(c => c.id === id);
+  if (!cd) return;
+  cd.frozen = null;
+  saveData();
+  renderCountdowns();
+}
+
+function deleteCountdown(id) {
+  const cd = data.countdowns.find(c => c.id === id);
+  if (!cd) return;
+  if (!confirm(`确定删除倒计时"${cd.name}"？`)) return;
+  data.countdowns = data.countdowns.filter(c => c.id !== id);
+  saveData();
+  renderCountdowns();
+}
+
+// 手动扣减弹窗 DOM（首次调用时注入）
+let cdDeductModal = null;
+function ensureCdDeductModal() {
+  if (cdDeductModal) return cdDeductModal;
+  cdDeductModal = document.createElement('div');
+  cdDeductModal.className = 'modal-overlay';
+  cdDeductModal.id = 'cd-deduct-modal';
+  cdDeductModal.innerHTML = `
+    <div class="modal">
+      <h3 id="cd-deduct-title">按次数扣减</h3>
+      <div class="budget-info"><div id="cd-deduct-remaining" class="amount">累计 0 次 · 次均 ¥0.00</div></div>
+      <div class="form-group">
+        <label>本次次数</label>
+        <input type="number" id="cd-deduct-count" step="1" min="1" placeholder="1">
+      </div>
+      <div class="form-group">
+        <label>扣减日期</label>
+        <input type="date" id="cd-deduct-date">
+      </div>
+      <div class="flex mt-12">
+        <button class="btn-primary" id="cd-deduct-confirm">确认扣减</button>
+        <button class="btn-ghost" onclick="closeCdDeduct()">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(cdDeductModal);
+  cdDeductModal.querySelector('#cd-deduct-confirm').onclick = confirmCdDeduct;
+  return cdDeductModal;
+}
+let cdDeductingId = null;
+
+function openCdDeduct(id) {
+  const cd = data.countdowns.find(c => c.id === id);
+  if (!cd) return;
+  const progress = getCdProgress(cd, Date.now());
+
+  ensureCdDeductModal();
+  cdDeductingId = id;
+  document.getElementById('cd-deduct-title').textContent = `按次数扣减 · ${cd.name}`;
+  document.getElementById('cd-deduct-remaining').textContent = `已累计 ${progress.totalCount} 次 · 次均 ${formatMoney(progress.perCountAvg)}`;
+  document.getElementById('cd-deduct-count').value = '';
+  // 默认今天
+  const today = new Date();
+  document.getElementById('cd-deduct-date').value = today.toISOString().slice(0, 10);
+  cdDeductModal.classList.add('active');
+  setTimeout(() => document.getElementById('cd-deduct-count').focus(), 50);
+}
+
+function closeCdDeduct() {
+  if (cdDeductModal) cdDeductModal.classList.remove('active');
+  cdDeductingId = null;
+}
+
+function confirmCdDeduct() {
+  const cd = data.countdowns.find(c => c.id === cdDeductingId);
+  if (!cd) { closeCdDeduct(); return; }
+  const count = parseInt(document.getElementById('cd-deduct-count').value, 10);
+  const dateVal = document.getElementById('cd-deduct-date').value;
+  if (!count || count <= 0) return alert('请输入有效的次数');
+  if (!dateVal) return alert('请选择扣减日期');
+
+  const d = new Date(dateVal); d.setHours(12, 0, 0, 0);
+  cd.records = cd.records || [];
+  cd.records.push({ ts: d.getTime(), count });
+  saveData();
+  renderCountdowns();
+  closeCdDeduct();
+}
+
+function formatDateShort(ts) {
+  return new Date(ts).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' });
+}
+
+function escapeHtml(s) {
+  const d = document.createElement('div'); d.textContent = s; return d.innerHTML;
+}
+
+// ============ 数据导出 ============
+function exportData() {
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `记账数据_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function importData() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = 'application/json,.json';
+  input.onchange = () => {
+    const f = input.files && input.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const obj = JSON.parse(reader.result);
+        if (!obj || typeof obj !== 'object' || !Array.isArray(obj.bills)) throw new Error('文件格式不正确');
+        if (!confirm('导入会覆盖当前全部数据，确定继续？')) return;
+        data = obj;
+        saveData();
+        location.reload();
+      } catch (err) {
+        alert('导入失败：' + err.message);
+      }
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}
+
+// ============ 初始化 ============
+function init() {
+  initBillForm();
+  initBudgetMonthSelect();
+  renderBills();
+  renderCountdowns();
+  onCdModeChange();
+}
+
+// 倒计时每分钟自动刷新一次（时间均摊实时扣减）
+setInterval(() => {
+  if (document.getElementById('tab-countdown').classList.contains('active')) {
+    renderCountdowns();
+  }
+}, 60000);
+
+init();
+
+// ============ PWA：离线缓存 + 安装到桌面 ============
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+
+let deferredInstallPrompt = null;
+const isStandalone = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  document.getElementById('pwa-install').style.display = '';
+});
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  document.getElementById('pwa-install').style.display = 'none';
+});
+
+function installPwa() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    deferredInstallPrompt.userChoice.then(() => {
+      deferredInstallPrompt = null;
+      document.getElementById('pwa-install').style.display = 'none';
+    });
+    return;
+  }
+  if (/iphone|ipad|ipod/i.test(navigator.userAgent)) {
+    alert('在 Safari 中点击底部「分享」按钮 → 选择「添加到主屏幕」，即可像 App 一样使用。');
+  } else {
+    alert('请点浏览器右上角菜单 → 选择「添加到主屏幕 / 安装应用」。');
+  }
+}
+
+// iOS Safari 不会触发 beforeinstallprompt，手动显示按钮
+window.addEventListener('load', () => {
+  const isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  if (isiOS && !isStandalone()) {
+    document.getElementById('pwa-install').style.display = '';
+  }
+});
+</script>
+</body>
+</html>
