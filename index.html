@@ -218,7 +218,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.2</span></h1>
+    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.3</span></h1>
     <div style="display:flex; gap:8px; align-items:center;">
       <button id="pwa-install" class="btn-primary btn-sm" style="display:none;" onclick="installPwa()">📲 安装到桌面</button>
       <button class="btn-ghost btn-sm" onclick="importData()">📤 导入</button>
@@ -391,7 +391,7 @@
       <h2>🎯 当月预算</h2>
       <div class="flex">
         <select id="budget-month-select" onchange="renderBudget()"></select>
-        <input type="number" id="budget-amount-input" placeholder="输入基础额度" step="0.01" min="0" oninput="renderLimitPreview()">
+        <input type="number" id="budget-amount-input" placeholder="输入基础额度（可为负数）" step="0.01" oninput="renderLimitPreview()">
         <button class="btn-primary" onclick="setBudget()">设置额度</button>
         <button class="btn-ghost" onclick="revokeBudget()">撤销额度</button>
       </div>
@@ -506,7 +506,7 @@ function saveData() {
 function uid() { return Date.now().toString(36) + Math.random().toString(36).substr(2, 5); }
 
 // ============ 工具函数 ============
-function formatMoney(n) { return '¥' + Number(n || 0).toFixed(2); }
+function formatMoney(n) { const v = Number(n || 0); return (v < 0 ? '-¥' : '¥') + Math.abs(v).toFixed(2); }
 function formatDate(ts) { return new Date(ts).toLocaleString('zh-CN', { year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' }); }
 function getCategoryBadge(majorId) {
   const map = { c1:'food', c2:'transport', c3:'shopping', c4:'entertainment', c5:'housing', c6:'health', c7:'education' };
@@ -929,12 +929,12 @@ function setBudget() {
   const month = document.getElementById('budget-month-select').value;
   const raw = document.getElementById('budget-amount-input').value;
   const base = parseFloat(raw);
-  if (raw === '' || isNaN(base) || base < 0) { alert('请输入有效额度'); return; }
+  if (raw === '' || isNaN(base)) { alert('请输入有效额度'); return; }
 
   const budgetSet = hasBudget(month);
   const carry = budgetSet ? null : getPrevCarryover(month);
   const adjust = carry ? carry.adjust : 0;
-  const final = Math.max(0, round2(base + adjust));
+  const final = round2(base + adjust);
 
   data.budgets[month] = final;
   saveData();
@@ -1006,7 +1006,7 @@ function renderLimitPreview() {
     return;
   }
 
-  const final = Math.max(0, round2(base + carry.adjust));
+  const final = round2(base + carry.adjust);
   hint.style.display = 'block';
   hint.innerHTML = `基础额度 ${formatMoney(base)} ${sign} ${carry.prevMonth}${label} ${formatMoney(Math.abs(carry.diff))} × ${carry.ratio}% = 最终额度 <b class="amount">${formatMoney(final)}</b>`;
 }
@@ -1034,8 +1034,9 @@ function renderBudget() {
   }
 
   const dailyAllowance = remainingDays > 0 ? remaining / remainingDays : 0;
-  const pct = budget ? (spent / budget * 100) : 0;
-  const fillClass = pct > 100 ? 'danger' : pct > 80 ? 'warn' : '';
+  const pct = budget > 0 ? (spent / budget * 100) : 0;
+  const pctText = budget > 0 ? pct.toFixed(1) + '%' : '—';
+  const fillClass = budget > 0 && pct > 100 ? 'danger' : budget > 0 && pct > 80 ? 'warn' : '';
 
   document.getElementById('budget-amount-input').value = budgetSet ? budget : '';
   renderLimitPreview();
@@ -1050,7 +1051,7 @@ function renderBudget() {
       </div>
       <div class="progress-bar"><div class="progress-fill ${fillClass}" style="width:${Math.min(100, pct)}%"></div></div>
       <div class="flex-between">
-        <span class="text-secondary">进度 ${pct.toFixed(1)}%</span>
+        <span class="text-secondary">进度 ${pctText}</span>
         <span class="${remaining >= 0 ? 'text-success' : 'text-danger'}">${remaining >= 0 ? '剩余' : '超支'} ${formatMoney(Math.abs(remaining))}</span>
       </div>
     </div>
@@ -1079,7 +1080,8 @@ function renderBudget() {
 
 function renderCarryoverInfo() {
   const month = document.getElementById('budget-month-select').value;
-  const budget = data.budgets[month] || 0;
+  const budgetSet = hasBudget(month);
+  const budget = budgetSet ? data.budgets[month] : 0;
   const bills = getMonthBills(month);
   const spent = bills.reduce((s, b) => s + b.amount, 0);
   const diff = budget - spent;
@@ -1092,7 +1094,7 @@ function renderCarryoverInfo() {
 
   let suggested = budget;
   let info = '';
-  if (budget > 0) {
+  if (budgetSet) {
     if (diff > 0) {
       const add = diff * (data.ratios.increase / 100);
       suggested = budget + add;
@@ -1100,7 +1102,7 @@ function renderCarryoverInfo() {
     } else if (diff < 0) {
       const over = -diff;
       const cut = over * (data.ratios.decrease / 100);
-      suggested = Math.max(0, budget - cut);
+      suggested = budget - cut;
       info = `<span class="text-danger">本月超支 ${formatMoney(over)}</span>，按 ${data.ratios.decrease}% 比例扣减，建议下月额度：<b class="amount">${formatMoney(suggested)}</b>`;
     } else {
       info = '本月刚好花完，建议下月额度保持不变';
@@ -1122,7 +1124,7 @@ function applyCarryover() {
   const info = document.getElementById('carryover-info');
   const nextMonth = info.dataset.nextMonth;
   const suggested = parseFloat(info.dataset.suggested);
-  if (isNaN(suggested) || suggested < 0) { alert('暂无可应用的建议额度'); return; }
+  if (isNaN(suggested)) { alert('暂无可应用的建议额度'); return; }
   if (confirm(`将 ${nextMonth} 的额度设置为 ${formatMoney(suggested)}？`)) {
     data.budgets[nextMonth] = suggested;
     saveData();
@@ -1159,13 +1161,13 @@ function renderBudgetHistory() {
     const budget = data.budgets[month];
     const spent = getMonthBills(month).reduce((s, b) => s + b.amount, 0);
     const diff = budget - spent;
-    const pct = budget ? (spent / budget * 100).toFixed(1) : 0;
+    const pctText = budget > 0 ? (spent / budget * 100).toFixed(1) + '%' : '—';
     html += `<tr>
       <td>${month}</td>
       <td>${formatMoney(budget)}</td>
       <td>${formatMoney(spent)}</td>
       <td class="${diff >= 0 ? 'text-success' : 'text-danger'}">${diff >= 0 ? '+' : ''}${formatMoney(diff)}</td>
-      <td>${pct}%</td>
+      <td>${pctText}</td>
     </tr>`;
   });
   html += '</tbody></table></div>';
