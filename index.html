@@ -153,6 +153,13 @@
 
   .cd-footer { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
   .cd-records { margin-top: 10px; border-top: 1px dashed var(--border); padding-top: 10px; }
+  .cd-records-toggle {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border);
+    font-size: 12px; color: var(--text-secondary); cursor: pointer; user-select: none;
+  }
+  .cd-records-toggle:active { color: var(--primary); }
+  .cd-records-toggle .arrow { font-size: 11px; color: var(--primary); }
   .cd-record-row {
     display: flex; justify-content: space-between; align-items: center;
     font-size: 12px; color: var(--text-secondary); padding: 3px 0;
@@ -218,7 +225,7 @@
 <body>
 <div class="app">
   <header>
-    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.3</span></h1>
+    <h1>智能记账本 <span class="text-secondary" style="font-size:12px; font-weight:400;">v3.4</span></h1>
     <div style="display:flex; gap:8px; align-items:center;">
       <button id="pwa-install" class="btn-primary btn-sm" style="display:none;" onclick="installPwa()">📲 安装到桌面</button>
       <button class="btn-ghost btn-sm" onclick="importData()">📤 导入</button>
@@ -1274,6 +1281,14 @@ function onCdModeChange() {
   document.getElementById('cd-time-range').style.display = mode === 'time' ? '' : 'none';
 }
 
+// 记住哪些倒计时的扣减记录处于展开状态（仅内存，不持久化）
+const expandedCdRecords = new Set();
+function toggleCdRecords(id) {
+  if (expandedCdRecords.has(id)) expandedCdRecords.delete(id);
+  else expandedCdRecords.add(id);
+  renderCountdowns();
+}
+
 function renderCountdowns() {
   const list = document.getElementById('countdown-list');
   if (!data.countdowns || data.countdowns.length === 0) {
@@ -1303,12 +1318,16 @@ function renderCountdowns() {
 
     let recordsHtml = '';
     if (cd.mode === 'manual' && cd.records && cd.records.length > 0) {
-      recordsHtml = `<div class="cd-records">
-        ${cd.records.slice(-5).reverse().map(r => `<div class="cd-record-row"><span>${formatDateShort(r.ts)}</span><span class="cd-record-amount">${r.count} 次</span></div>`).join('')}
-      </div>`;
-      if (cd.records.length > 5) {
-        recordsHtml += `<div class="text-secondary" style="font-size:11px; text-align:right; margin-top:4px;">共 ${cd.records.length} 笔，仅显示最近 5 笔</div>`;
-      }
+      const recOpen = expandedCdRecords.has(cd.id);
+      const rows = cd.records.slice().reverse()
+        .map(r => `<div class="cd-record-row"><span>${formatDateShort(r.ts)}</span><span class="cd-record-amount">${r.count} 次</span></div>`)
+        .join('');
+      recordsHtml = `
+        <div class="cd-records-toggle" onclick="toggleCdRecords('${cd.id}')">
+          <span>📋 扣减记录（共 ${cd.records.length} 笔）</span>
+          <span class="arrow">${recOpen ? '收起 ▲' : '展开全部 ▼'}</span>
+        </div>
+        <div class="cd-records" style="display:${recOpen ? 'block' : 'none'}; border-top:none; margin-top:6px; padding-top:0;">${rows}</div>`;
     }
 
     return `<div class="cd-item">
